@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  color: #16241D;
+  background-color: #F5F1E8;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2F6B4F;
+  border-radius: 8px;
+}
+
+.container-x {
+  @apply max-w-7xl mx-auto px-5 sm:px-8 lg:px-10;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 bg-primary text-white font-medium px-6 py-3 rounded-full hover:bg-primary-dark transition-colors duration-200;
+}
+
+.btn-outline {
+  @apply inline-flex items-center justify-center gap-2 border border-ink/20 text-ink font-medium px-6 py-3 rounded-full hover:border-primary hover:text-primary transition-colors duration-200;
+}
+
+.section-label {
+  @apply inline-block text-primary font-medium tracking-wide uppercase text-sm mb-3;
+}
+
+.card {
+  @apply bg-white rounded-xl2 shadow-sm border border-black/5;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 rounded-lg border border-black/10 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition;
+}
+
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  opacity: 0;
+  animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
