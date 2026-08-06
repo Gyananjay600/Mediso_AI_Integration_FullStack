@@ -6,7 +6,8 @@ function notFound(req, res) {
 function errorHandler(err, req, res, next) {
   console.error(err);
 
-  if (err.code === "ER_DUP_ENTRY") {
+  // Supabase/Postgres unique-violation error code
+  if (err.code === "23505") {
     return res.status(409).json({ success: false, message: "That record already exists." });
   }
 

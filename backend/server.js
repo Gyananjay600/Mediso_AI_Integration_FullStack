@@ -1,6 +1,6 @@
 require("dotenv").config();
 const app = require("./src/app");
-const { testConnection } = require("./src/config/db");
+const { testConnection } = require("./src/config/supabase");
 
 const PORT = process.env.PORT || 5000;
 

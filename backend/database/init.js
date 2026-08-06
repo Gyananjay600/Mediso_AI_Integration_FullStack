@@ -1,34 +1,29 @@
 /**
- * Initializes the MySQL database by executing schema.sql.
- * Run with: npm run db:init
+ * Mediso Database Schema Setup
+ *
+ * This schema should be run directly in the Supabase Dashboard → SQL Editor.
+ * Copy the contents of schema.sql and paste it into the SQL Editor, then click "Run".
+ *
+ * The Supabase JS client uses the REST API and does not support running
+ * arbitrary DDL statements, so direct execution from Node.js is no longer used.
+ *
+ * Steps:
+ * 1. Go to your Supabase Dashboard → SQL Editor
+ * 2. Open database/schema.sql from this project
+ * 3. Paste the entire contents and click "Run"
+ * 4. Verify tables are created in Table Editor
  */
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const mysql = require("mysql2/promise");
 
-async function init() {
-  const schemaPath = path.join(__dirname, "schema.sql");
-  const schemaSql = fs.readFileSync(schemaPath, "utf8");
-
-  const connection = await mysql.createConnection({
-    host: process.env.DB_HOST || "127.0.0.1",
-    port: Number(process.env.DB_PORT) || 3306,
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    multipleStatements: true,
-  });
-
-  try {
-    console.log("Connecting to MySQL and applying schema...");
-    await connection.query(schemaSql);
-    console.log("✅ Database schema applied successfully.");
-  } catch (err) {
-    console.error("❌ Failed to apply schema:", err.message);
-    process.exitCode = 1;
-  } finally {
-    await connection.end();
-  }
-}
-
-init();
+console.log("═══════════════════════════════════════════════════════════════");
+console.log("  Mediso — Database Schema Setup");
+console.log("═══════════════════════════════════════════════════════════════");
+console.log("");
+console.log("  The schema must now be applied via the Supabase Dashboard.");
+console.log("");
+console.log("  Steps:");
+console.log("    1. Go to: https://supabase.com/dashboard → your project → SQL Editor");
+console.log("    2. Open:  backend/database/schema.sql");
+console.log("    3. Paste the entire contents and click 'Run'");
+console.log("    4. Verify tables in Table Editor");
+console.log("");
+console.log("═══════════════════════════════════════════════════════════════");

@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { pool } = require("../config/db");
+const { supabase } = require("../config/supabase");
 const asyncHandler = require("../utils/asyncHandler");
 const { screenCareerApplication, generateAcknowledgment } = require("../services/aiService");
 
@@ -14,23 +14,22 @@ const apply = asyncHandler(async (req, res) => {
   const aiNote = await generateAcknowledgment({ name, kind: "career_application", topic: jobTitle });
 
   const id = randomUUID();
-  await pool.query(
-    `INSERT INTO career_applications
-      (id, job_slug, job_title, name, email, phone, message, ai_summary, ai_fit_score, ai_highlights)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      jobSlug,
-      jobTitle,
-      name,
-      email,
-      phone || null,
-      message,
-      screening.summary || null,
-      screening.fitScore ?? null,
-      JSON.stringify(screening.highlights || []),
-    ]
-  );
+  const { error } = await supabase.from("career_applications").insert({
+    id,
+    job_slug: jobSlug,
+    job_title: jobTitle,
+    name,
+    email,
+    phone: phone || null,
+    message,
+    ai_summary: screening.summary || null,
+    ai_fit_score: screening.fitScore ?? null,
+    ai_highlights: screening.highlights || [],
+  });
+
+  if (error) {
+    throw new Error(`Failed to save career application: ${error.message}`);
+  }
 
   res.status(201).json({
     success: true,

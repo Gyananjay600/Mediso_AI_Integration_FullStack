@@ -1,66 +1,82 @@
-const { randomUUID } = require("crypto");
-const bcrypt = require("bcryptjs");
-const { pool } = require("../config/db");
-const { signToken } = require("../utils/jwt");
+const { supabase } = require("../config/supabase");
 const asyncHandler = require("../utils/asyncHandler");
-
-function toPublicUser(row) {
-  return { id: row.id, name: row.name, email: row.email };
-}
 
 const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
-  const [existing] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [
-    email.toLowerCase(),
-  ]);
-  if (existing.length > 0) {
-    return res.status(409).json({ success: false, message: "An account with this email already exists." });
+  const { data, error } = await supabase.auth.admin.createUser({
+    email: email.toLowerCase(),
+    password,
+    email_confirm: true,
+    user_metadata: { name },
+  });
+
+  if (error) {
+    // Supabase returns a specific message for duplicate emails
+    if (error.message.toLowerCase().includes("already been registered") || error.status === 422) {
+      return res.status(409).json({ success: false, message: "An account with this email already exists." });
+    }
+    return res.status(400).json({ success: false, message: error.message });
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  const id = randomUUID();
+  // Sign in immediately to get an access token
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email: email.toLowerCase(),
+    password,
+  });
 
-  await pool.query(
-    "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)",
-    [id, name, email.toLowerCase(), passwordHash]
-  );
+  if (signInError) {
+    return res.status(500).json({ success: false, message: "Account created but auto-login failed. Please log in manually." });
+  }
 
-  const user = { id, name, email: email.toLowerCase() };
-  const token = signToken({ id: user.id, email: user.email });
+  const user = {
+    id: data.user.id,
+    name: data.user.user_metadata?.name || name,
+    email: data.user.email,
+  };
 
-  res.status(201).json({ success: true, token, user });
+  res.status(201).json({
+    success: true,
+    token: signInData.session.access_token,
+    user,
+  });
 });
 
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  const [rows] = await pool.query("SELECT * FROM users WHERE email = ? LIMIT 1", [
-    email.toLowerCase(),
-  ]);
-  const row = rows[0];
-  if (!row) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.toLowerCase(),
+    password,
+  });
+
+  if (error) {
     return res.status(401).json({ success: false, message: "Invalid email or password." });
   }
 
-  const isMatch = await bcrypt.compare(password, row.password_hash);
-  if (!isMatch) {
-    return res.status(401).json({ success: false, message: "Invalid email or password." });
-  }
+  const user = {
+    id: data.user.id,
+    name: data.user.user_metadata?.name || "",
+    email: data.user.email,
+  };
 
-  const user = toPublicUser(row);
-  const token = signToken({ id: user.id, email: user.email });
-
-  res.json({ success: true, token, user });
+  res.json({
+    success: true,
+    token: data.session.access_token,
+    user,
+  });
 });
 
 const me = asyncHandler(async (req, res) => {
-  const [rows] = await pool.query("SELECT * FROM users WHERE id = ? LIMIT 1", [req.user.id]);
-  const row = rows[0];
-  if (!row) {
-    return res.status(404).json({ success: false, message: "User not found." });
-  }
-  res.json({ success: true, user: toPublicUser(row) });
+  // req.user is set by the auth middleware
+  res.json({
+    success: true,
+    user: {
+      id: req.user.id,
+      name: req.user.user_metadata?.name || "",
+      email: req.user.email,
+    },
+  });
 });
 
 module.exports = { register, login, me };

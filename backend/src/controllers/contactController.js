@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { pool } = require("../config/db");
+const { supabase } = require("../config/supabase");
 const asyncHandler = require("../utils/asyncHandler");
 const { triageContactMessage, generateAcknowledgment } = require("../services/aiService");
 
@@ -12,22 +12,21 @@ const submitContact = asyncHandler(async (req, res) => {
   const aiNote = await generateAcknowledgment({ name, kind: "contact_message", topic: subject });
 
   const id = randomUUID();
-  await pool.query(
-    `INSERT INTO contact_submissions
-      (id, user_id, name, email, subject, message, ai_priority, ai_summary, ai_suggested_department)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      userId,
-      name,
-      email,
-      subject,
-      message,
-      triage.priority || null,
-      triage.summary || null,
-      triage.suggestedDepartment || null,
-    ]
-  );
+  const { error } = await supabase.from("contact_submissions").insert({
+    id,
+    user_id: userId,
+    name,
+    email,
+    subject,
+    message,
+    ai_priority: triage.priority || null,
+    ai_summary: triage.summary || null,
+    ai_suggested_department: triage.suggestedDepartment || null,
+  });
+
+  if (error) {
+    throw new Error(`Failed to save contact submission: ${error.message}`);
+  }
 
   res.status(201).json({
     success: true,

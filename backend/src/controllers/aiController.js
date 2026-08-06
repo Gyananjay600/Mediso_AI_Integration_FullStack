@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { pool } = require("../config/db");
+const { supabase } = require("../config/supabase");
 const asyncHandler = require("../utils/asyncHandler");
 const { chatWithHealthAssistant, isAIEnabled } = require("../services/aiService");
 
@@ -12,33 +12,57 @@ const chat = asyncHandler(async (req, res) => {
   let sessionId = incomingSessionId;
   if (!sessionId) {
     sessionId = randomUUID();
-    await pool.query("INSERT INTO ai_chat_sessions (id, user_id) VALUES (?, ?)", [sessionId, userId]);
+    const { error } = await supabase.from("ai_chat_sessions").insert({ id: sessionId, user_id: userId });
+    if (error) throw new Error(`Failed to create chat session: ${error.message}`);
   } else {
-    const [rows] = await pool.query("SELECT id FROM ai_chat_sessions WHERE id = ? LIMIT 1", [sessionId]);
-    if (rows.length === 0) {
-      await pool.query("INSERT INTO ai_chat_sessions (id, user_id) VALUES (?, ?)", [sessionId, userId]);
+    // Verify session exists, create if not
+    const { data: existing, error: selectError } = await supabase
+      .from("ai_chat_sessions")
+      .select("id")
+      .eq("id", sessionId)
+      .limit(1);
+
+    if (selectError) throw new Error(`Session lookup failed: ${selectError.message}`);
+
+    if (!existing || existing.length === 0) {
+      const { error: insertError } = await supabase
+        .from("ai_chat_sessions")
+        .insert({ id: sessionId, user_id: userId });
+      if (insertError) throw new Error(`Failed to create chat session: ${insertError.message}`);
     }
   }
 
   // Persist the user's message
-  await pool.query(
-    "INSERT INTO ai_chat_messages (id, session_id, role, content) VALUES (?, ?, 'user', ?)",
-    [randomUUID(), sessionId, message]
-  );
+  const { error: userMsgError } = await supabase.from("ai_chat_messages").insert({
+    id: randomUUID(),
+    session_id: sessionId,
+    role: "user",
+    content: message,
+  });
+  if (userMsgError) throw new Error(`Failed to save user message: ${userMsgError.message}`);
 
   // Pull recent history for context
-  const [historyRows] = await pool.query(
-    "SELECT role, content FROM ai_chat_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT ?",
-    [sessionId, MAX_HISTORY_MESSAGES]
-  );
-  const history = historyRows.map((r) => ({ role: r.role, content: r.content }));
+  const { data: historyRows, error: historyError } = await supabase
+    .from("ai_chat_messages")
+    .select("role, content")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true })
+    .limit(MAX_HISTORY_MESSAGES);
+
+  if (historyError) throw new Error(`Failed to load chat history: ${historyError.message}`);
+
+  const history = (historyRows || []).map((r) => ({ role: r.role, content: r.content }));
 
   const { reply, aiPowered } = await chatWithHealthAssistant(history);
 
-  await pool.query(
-    "INSERT INTO ai_chat_messages (id, session_id, role, content) VALUES (?, ?, 'assistant', ?)",
-    [randomUUID(), sessionId, reply]
-  );
+  // Persist the assistant's reply
+  const { error: assistantMsgError } = await supabase.from("ai_chat_messages").insert({
+    id: randomUUID(),
+    session_id: sessionId,
+    role: "assistant",
+    content: reply,
+  });
+  if (assistantMsgError) throw new Error(`Failed to save assistant message: ${assistantMsgError.message}`);
 
   res.json({ success: true, sessionId, reply, aiPowered });
 });

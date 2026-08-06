@@ -1,22 +1,33 @@
 const { randomUUID } = require("crypto");
-const { pool } = require("../config/db");
+const { supabase } = require("../config/supabase");
 const asyncHandler = require("../utils/asyncHandler");
 
 const subscribe = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
-  const [existing] = await pool.query(
-    "SELECT id FROM newsletter_subscribers WHERE email = ? LIMIT 1",
-    [email.toLowerCase()]
-  );
-  if (existing.length > 0) {
+  // Check if already subscribed
+  const { data: existing, error: selectError } = await supabase
+    .from("newsletter_subscribers")
+    .select("id")
+    .eq("email", email.toLowerCase())
+    .limit(1);
+
+  if (selectError) {
+    throw new Error(`Newsletter lookup failed: ${selectError.message}`);
+  }
+
+  if (existing && existing.length > 0) {
     return res.json({ success: true, message: "You're already subscribed!" });
   }
 
-  await pool.query("INSERT INTO newsletter_subscribers (id, email) VALUES (?, ?)", [
-    randomUUID(),
-    email.toLowerCase(),
-  ]);
+  const { error: insertError } = await supabase.from("newsletter_subscribers").insert({
+    id: randomUUID(),
+    email: email.toLowerCase(),
+  });
+
+  if (insertError) {
+    throw new Error(`Newsletter subscribe failed: ${insertError.message}`);
+  }
 
   res.status(201).json({ success: true, message: "Thanks for subscribing!" });
 });
