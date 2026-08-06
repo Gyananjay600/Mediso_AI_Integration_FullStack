@@ -18,8 +18,13 @@ const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
 app.use(
   cors({
     origin(origin, callback) {
-      // allow non-browser tools (curl/postman) with no origin header
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow non-browser tools (curl/postman) or matching frontend origins / vercel preview deployments
+      if (
+        !origin ||
+        allowedOrigins.includes("*") ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"));
@@ -28,7 +33,23 @@ app.use(
   })
 );
 
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "🚀 Mediso API is running.",
+    endpoints: {
+      health: "/api/health",
+      auth: "/api/auth",
+      contact: "/api/contact",
+      newsletter: "/api/newsletter",
+      careers: "/api/careers",
+      ai: "/api/ai",
+    },
+  });
+});
+
 app.use("/api", routes);
+app.use(routes);
 
 app.use(notFound);
 app.use(errorHandler);
